@@ -229,6 +229,8 @@ button:disabled{opacity:.3;cursor:default}
     <div class="box">
       <h2 class="ptitle">백업</h2>
       <p class="footnote">입력한 재고, 수정한 품목, 발주 기록을 JSON 파일 하나로 저장해요. 다른 기기에서 이 파일을 불러오면 이어서 쓸 수 있어요.</p>
+      <p class="footnote" id="verinfo"></p>
+      <script>try{document.getElementById("verinfo").textContent="화면 버전 11월 9일 23시 20분 / 기기 다크모드 "+(matchMedia("(prefers-color-scheme: dark)").matches?"켜짐":"꺼짐")}catch(e){}</script>
       <div class="actions">
         <button type="button" class="btn" id="backup">백업 다운로드</button>
         <button type="button" class="btn" id="restoreButton">백업 불러오기</button>
