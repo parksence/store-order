@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FFD60A">
+<title>매장 자동 발주 관리</title>
+<meta name="apple-mobile-web-app-title" content="매장 발주">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap">
+<style>
+:root{
+  /* Layout: phone-first single column, max 720px. A signboard-yellow header over a cool paper page of location panels, with a blue tab bar pinned to the bottom.
+     Rule: a yellow fill on a light surface means "order needed"; a blue fill means selected or primary action. */
+  --sign:#FFD60A;
+  --blue:#1C3A86;
+  --ink:#16224A;
+  --paper:#F2F4F9;
+  --line:#D9DFEB;
+  --red:#C2362E;
+  /* supporting shades */
+  --card:#FFFFFF;
+  --muted:#5A6482;
+  --sign-deep:#E3B800;
+  --sign-soft:#FFF2B8;
+  --line-soft:#E8ECF3;
+  --blue-soft:#A3B2D6;
+  --display:"Black Han Sans","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  --body:system-ui,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  --gut:16px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--paper)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+h1,h2,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background-color .12s,border-color .12s,color .12s}
+button:disabled{opacity:.3;cursor:default}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.mode :focus-visible,.nav :focus-visible{outline-color:var(--sign)}
+.head h1,.ghead h2,.ptitle,.metric b,.qty,.oq{font-family:var(--display);font-weight:900;font-synthesis:none}
+.hide{display:none!important}
+
+/* header: the signboard */
+.head{background:var(--sign);color:var(--blue);border-bottom:5px solid var(--blue);padding:calc(22px + env(safe-area-inset-top)) max(var(--gut),env(safe-area-inset-right)) 18px max(var(--gut),env(safe-area-inset-left))}
+.headin{max-width:720px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.head h1{font-size:31px;line-height:1.12;text-wrap:balance}
+.head p{font-size:14px;line-height:1.55;color:var(--ink);max-width:34em;word-break:keep-all}
+.modebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:4px}
+.mode{display:inline-flex;gap:2px;padding:4px;background:var(--blue);border-radius:999px}
+.mode button{border:0;background:transparent;color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;font-weight:800}
+.mode button.on{background:var(--sign);color:var(--blue)}
+.today{font-size:13px;font-weight:800;color:var(--ink)}
+
+/* page */
+.wrap{max-width:720px;margin:0 auto;padding:16px max(var(--gut),env(safe-area-inset-right)) calc(88px + env(safe-area-inset-bottom)) max(var(--gut),env(safe-area-inset-left))}
+.view{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.muted{font-size:13px;color:var(--muted);word-break:keep-all}
+.footnote{font-size:13px;line-height:1.6;color:var(--muted);word-break:keep-all}
+.notice{background:var(--sign-soft);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.6;color:var(--ink);word-break:keep-all}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.pagehead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ptitle{font-size:23px;line-height:1.2;color:var(--blue)}
+
+/* buttons */
+.btn{border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:800;line-height:1.2}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--sign)}
+.btn.danger{color:var(--red);border-color:#EBCBC7}
+.btn.dangerfill{background:var(--red);border-color:var(--red);color:#fff}
+
+/* summary */
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.metric{display:grid;justify-items:center;gap:2px;padding:10px 6px 9px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.metric b{font-size:27px;line-height:1.1;color:var(--blue);font-variant-numeric:tabular-nums}
+.metric span{font-size:12px;font-weight:700;color:var(--muted)}
+.metric.hot{background:var(--sign);border-color:var(--sign-deep)}
+.metric.hot span{color:var(--blue)}
+
+/* search and location chips */
+.search{width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px;font-size:16px;-webkit-appearance:none;appearance:none}
+.search:focus,.field input:focus,.field select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(28,58,134,.16)}
+.locbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--paper);margin:-6px calc(-1 * var(--gut)) 0;padding:8px var(--gut)}
+.locs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.locs::-webkit-scrollbar{display:none}
+.loc{flex:none;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 12px;font-size:13px;font-weight:800;white-space:nowrap;-webkit-user-select:none;user-select:none}
+.loc span{margin-left:4px;color:var(--muted);font-weight:700}
+.loc.on{background:var(--blue);border-color:var(--blue);color:var(--sign)}
+.loc.on span{color:inherit;opacity:.75}
+
+/* location groups and item rows */
+.list{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.group{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.ghead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:0 4px}
+.ghead h2{font-size:19px;line-height:1.2;color:var(--blue)}
+.ghead span{font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:64px;padding:11px 14px}
+.row+.row{border-top:1px solid var(--line-soft)}
+.rmain{flex:1;min-width:0}
+.rname{font-size:15.5px;font-weight:800;line-height:1.3;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere}
+.rmeta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:3px;font-size:12.5px;color:var(--muted)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:800;line-height:1.6;white-space:nowrap}
+.chip.need{background:var(--sign);color:var(--blue)}
+.chip.ok{background:var(--paper);color:var(--muted)}
+.chip.wait{border:1.5px dashed var(--blue-soft);color:var(--blue);line-height:1.35}
+.counter{flex:none;display:flex;align-items:center;gap:4px}
+.step{width:42px;height:42px;display:grid;place-items:center;border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--blue);font-size:22px;font-weight:800;line-height:1;-webkit-user-select:none;user-select:none}
+.step.plus{background:var(--blue);border-color:var(--blue);color:var(--sign)}
+.qty{min-width:38px;text-align:center;font-size:23px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.seg{flex:none;display:flex;gap:6px}
+.seg button{border:1.5px solid var(--line);background:var(--card);color:var(--blue);border-radius:11px;padding:11px 10px;font-size:13px;font-weight:800;line-height:1.2;white-space:nowrap;-webkit-user-select:none;user-select:none}
+.seg button.on{background:var(--blue);border-color:var(--blue);color:var(--sign)}
+.oq{flex:none;font-size:24px;line-height:1;color:var(--blue);font-variant-numeric:tabular-nums}
+.oq small{font-size:14px;margin-left:2px}
+.empty{padding:36px 14px;text-align:center;color:var(--muted);background:var(--card);border:1.5px dashed var(--line);border-radius:16px;word-break:keep-all}
+
+/* settings */
+.box{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.box .panel{border:0;border-top:1px solid var(--line-soft);border-radius:0;margin:0 -16px}
+.box .panel .row{padding-left:16px;padding-right:16px}
+.field{display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.field label{font-size:13px;font-weight:700;color:var(--muted)}
+.field input,.field select{width:100%;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--card);font-size:16px}
+.field input{-webkit-appearance:none;appearance:none}
+.fieldrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+
+/* bottom tab bar */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--blue);padding:8px max(12px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.navin{max-width:720px;margin:0 auto;display:flex;gap:6px}
+.nav button{flex:1;border:0;border-radius:12px;padding:12px 6px;background:transparent;color:rgba(255,255,255,.8);font-size:14.5px;font-weight:800}
+.nav button.on{background:var(--sign);color:var(--blue)}
+
+/* toast and dialogs */
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:1001;max-width:calc(100vw - 32px);background:var(--ink);color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(22,34,74,.25)}
+.overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(22,34,74,.55)}
+.dialog{width:100%;max-width:400px;max-height:100%;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;background:var(--card);border-radius:20px;padding:22px;box-shadow:0 16px 48px rgba(22,34,74,.3)}
+.dialog h2{font-size:19px;font-weight:800;line-height:1.35;color:var(--blue);word-break:keep-all}
+.dialog p{font-size:14.5px;line-height:1.65;color:var(--ink);word-break:keep-all}
+.dlg-actions{display:flex;gap:10px;margin-top:6px}
+.dlg-actions .btn{flex:1;min-height:48px}
+
+@media (hover:hover){
+  .btn:hover,.loc:hover,.step:hover,.seg button:hover{border-color:var(--blue)}
+  .btn.danger:hover{border-color:var(--red)}
+  .btn.primary:hover,.btn.dangerfill:hover,.step.plus:hover,.seg button.on:hover,.loc.on:hover{filter:brightness(1.12)}
+}
+@media (prefers-reduced-motion:reduce){button{transition:none}}
+@media (max-width:480px){.fieldrow{grid-template-columns:minmax(0,1fr)}.head h1{font-size:27px}}
+@media (max-width:360px){.row.pick{flex-wrap:wrap}.row.pick .seg{width:100%}.row.pick .seg button{flex:1}}
+</style>
+</head>
+<body>
+<header class="head">
+  <div class="headin">
+    <h1>매장 자동 발주 관리</h1>
+    <p>실제 재고를 입력하면 기준 재고에서 모자란 만큼 발주 수량을 계산해요. 기준 재고는 11월 9일 구글 시트 값이에요.</p>
+    <div class="modebar">
+      <div class="mode" role="group" aria-label="기준 요일">
+        <button type="button" id="weekday" class="on" aria-pressed="true">평일</button>
+        <button type="button" id="holiday" aria-pressed="false">금·토·휴일</button>
+      </div>
+      <span class="today" id="today"></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="inventory" class="view">
+    <div class="summary">
+      <div class="metric"><b id="total">0</b><span>전체 품목</span></div>
+      <div class="metric hot"><b id="needed">0</b><span>발주 필요</span></div>
+      <div class="metric"><b id="pending">0</b><span>선택 대기</span></div>
+    </div>
+    <div class="toolbar">
+      <p class="muted">입력하지 않은 재고는 0개로 계산해요.</p>
+      <button type="button" class="btn danger" id="reset">재고 조사 초기화</button>
+    </div>
+    <input id="search" class="search" type="search" placeholder="품목 검색" aria-label="품목 검색" autocomplete="off">
+    <div class="locbar"><div id="locations" class="locs" role="group" aria-label="장소"></div></div>
+    <div id="list" class="list"></div>
+  </section>
+
+  <section id="orders" class="view hide">
+    <div class="pagehead"><h2 class="ptitle">발주 목록</h2><span id="orderCount" class="muted"></span></div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="copyOrder">목록 복사</button>
+      <button type="button" class="btn" id="csvOrder">CSV 저장</button>
+      <button type="button" class="btn" id="saveHistory">발주 기록 저장</button>
+    </div>
+    <p class="footnote">입력하지 않은 재고는 0개로 계산해요. 기준이 숫자가 아닌 품목은 '발주 필요'를 고른 것만 들어가요.</p>
+    <div id="orderLines" class="list"></div>
+    <div class="pagehead"><h2 class="ptitle">지난 발주 기록</h2></div>
+    <div id="history"></div>
+  </section>
+
+  <section id="settings" class="view hide">
+    <div class="box">
+      <h2 class="ptitle">품목 추가</h2>
+      <div class="field"><label for="newName">품목명</label><input id="newName" placeholder="예: 우유" autocomplete="off"></div>
+      <div class="field"><label for="newLocation">장소</label><select id="newLocation"></select></div>
+      <div class="fieldrow">
+        <div class="field"><label for="newWeekday">평일 기준</label><input id="newWeekday" placeholder="예: 3 또는 절반이하시" autocomplete="off"></div>
+        <div class="field"><label for="newHoliday">금·토·휴일 기준</label><input id="newHoliday" placeholder="비워 두면 미설정" autocomplete="off"></div>
+      </div>
+      <div class="actions"><button type="button" class="btn primary" id="addItem">품목 추가</button></div>
+    </div>
+    <div class="box">
+      <h2 class="ptitle">품목 수정·삭제</h2>
+      <input class="search" id="editSearch" type="search" placeholder="수정할 품목 검색" aria-label="수정할 품목 검색" autocomplete="off">
+      <div id="editList"></div>
+    </div>
+    <div class="box">
+      <h2 class="ptitle">백업</h2>
+      <p class="footnote">입력한 재고, 수정한 품목, 발주 기록을 JSON 파일 하나로 저장해요. 다른 기기에서 이 파일을 불러오면 이어서 쓸 수 있어요.</p>
+      <div class="actions">
+        <button type="button" class="btn" id="backup">백업 다운로드</button>
+        <button type="button" class="btn" id="restoreButton">백업 불러오기</button>
+        <input id="restoreFile" type="file" accept="application/json,.json" hidden>
+      </div>
+    </div>
+    <p class="notice">품목 목록은 2026년 11월 9일 구글 시트를 복사한 거예요. 그 뒤에 시트를 고쳐도 여기에는 반영되지 않아요. 입력한 내용은 이 브라우저에만 저장돼요. 다른 기기에서는 보이지 않고, 시크릿 모드에서는 창을 닫으면 지워져요.</p>
+  </section>
+</main>
+
+<nav class="nav" aria-label="화면 이동">
+  <div class="navin">
+    <button type="button" data-tab="inventory" class="on" aria-current="page">재고 조사</button>
+    <button type="button" data-tab="orders">발주 목록</button>
+    <button type="button" data-tab="settings">품목 관리</button>
+  </div>
+</nav>
+
+<div id="toast" class="toast hide" role="status" aria-live="polite"></div>
+
+<div id="resetOverlay" class="overlay hide" role="dialog" aria-modal="true" aria-labelledby="resetHeading">
+  <div class="dialog">
+    <h2 id="resetHeading">재고 조사를 초기화할까요?</h2>
+    <p>모든 재고가 <strong>0개</strong>로 돌아가고, 고른 발주 여부도 지워져요.</p>
+    <p>품목 목록, 기준 재고, 저장한 발주 기록은 그대로 남아요.</p>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="resetCancel">취소</button>
+      <button type="button" class="btn dangerfill" id="resetConfirm">초기화</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const INITIAL_ITEMS=[{"id":1,"location":"상온재료","name":"립톤아이스티","weekday":8,"holiday":null},{"id":2,"location":"상온재료","name":"꿀","weekday":1,"holiday":null},{"id":3,"location":"파우더","name":"피스타치오파우더","weekday":2,"holiday":null},{"id":4,"location":"상온재료","name":"식혜","weekday":1,"holiday":null},{"id":5,"location":"파우더","name":"쌍화차파우더","weekday":1,"holiday":null},{"id":6,"location":"파우더","name":"바닐라파우더","weekday":5,"holiday":null},{"id":7,"location":"파우더","name":"바나나파우더","weekday":1,"holiday":null},{"id":8,"location":"파우더","name":"요거트파우더","weekday":2,"holiday":null},{"id":9,"location":"파우더","name":"모카파우더","weekday":1,"holiday":null},{"id":10,"location":"상온재료","name":"망고베이스","weekday":1,"holiday":null},{"id":11,"location":"파우더","name":"밀크파우더","weekday":1,"holiday":null},{"id":12,"location":"파우더","name":"녹차파우더","weekday":1,"holiday":null},{"id":13,"location":"상온재료","name":"초코크런치","weekday":2,"holiday":null},{"id":14,"location":"파우더","name":"율무차","weekday":2,"holiday":null},{"id":15,"location":"파우더","name":"체리파우더","weekday":1,"holiday":null},{"id":16,"location":"파우더","name":"미숫가루","weekday":2,"holiday":null},{"id":17,"location":"상온재료","name":"크룽지","weekday":1,"holiday":null},{"id":18,"location":"상온재료","name":"오레오","weekday":2,"holiday":null},{"id":19,"location":"상온재료","name":"죠리퐁","weekday":5,"holiday":null},{"id":20,"location":"상온재료","name":"쿠키2종","weekday":"절반이하시","holiday":null},{"id":21,"location":"상온재료","name":"오레오분태","weekday":2,"holiday":null},{"id":22,"location":"상온재료","name":"코코볼","weekday":1,"holiday":null},{"id":23,"location":"상온재료","name":"슈가카페시럽","weekday":3,"holiday":null},{"id":24,"location":"상온재료","name":"헤이즐넛시럽","weekday":2,"holiday":null},{"id":25,"location":"상온재료","name":"흑당시럽","weekday":1,"holiday":null},{"id":26,"location":"상온재료","name":"연유","weekday":4,"holiday":null},{"id":27,"location":"상온재료","name":"딸기소스","weekday":2,"holiday":null},{"id":28,"location":"상온재료","name":"초콜릿소스","weekday":2,"holiday":null},{"id":29,"location":"쇼케이스","name":"티니핑3종","weekday":1,"holiday":null},{"id":30,"location":"상온재료","name":"허니자몽","weekday":1,"holiday":null},{"id":31,"location":"상온재료","name":"코카콜라","weekday":1,"holiday":null},{"id":32,"location":"상온재료","name":"카라멜소스","weekday":1,"holiday":null},{"id":33,"location":"상온재료","name":"청포도플라워","weekday":1,"holiday":null},{"id":34,"location":"상온재료","name":"유자퓨레","weekday":2,"holiday":null},{"id":35,"location":"상온재료","name":"레몬베이스","weekday":1,"holiday":null},{"id":36,"location":"상온재료","name":"아이스크림","weekday":1,"holiday":null},{"id":37,"location":"상온재료","name":"망고주스","weekday":3,"holiday":null},{"id":38,"location":"상온재료","name":"베지밀(두유)","weekday":4,"holiday":null},{"id":39,"location":"상온재료","name":"나타드코코","weekday":1,"holiday":null},{"id":40,"location":"상온재료","name":"탄산수","weekday":2,"holiday":null},{"id":41,"location":"상온재료","name":"초코쉘","weekday":1,"holiday":null},{"id":42,"location":"상온재료","name":"페퍼민트","weekday":1,"holiday":null},{"id":43,"location":"상온재료","name":"우롱티","weekday":1,"holiday":null},{"id":44,"location":"상온재료","name":"캐모마일","weekday":1,"holiday":null},{"id":45,"location":"상온재료","name":"아몬드브리즈","weekday":3,"holiday":null},{"id":46,"location":"상온재료","name":"딸기다이스","weekday":1,"holiday":null},{"id":47,"location":"일회용품","name":"24온스컵","weekday":1,"holiday":null},{"id":48,"location":"일회용품","name":"24온스뚜껑(평·돔)","weekday":"절반이하시","holiday":null},{"id":49,"location":"일회용품","name":"16온스컵","weekday":"절반이하시","holiday":null},{"id":50,"location":"일회용품","name":"16온스뚜껑","weekday":"절반이하시","holiday":null},{"id":51,"location":"일회용품","name":"32온스컵","weekday":"절반이하시","holiday":null},{"id":52,"location":"일회용품","name":"32온스뚜껑","weekday":"절반이하시","holiday":null},{"id":53,"location":"일회용품","name":"24온스홀더","weekday":1,"holiday":null},{"id":54,"location":"일회용품","name":"32온스홀더","weekday":1,"holiday":null},{"id":55,"location":"일회용품","name":"종이캐리어","weekday":1,"holiday":null},{"id":56,"location":"일회용품","name":"아이스크림컵·뚜껑","weekday":"1줄이하","holiday":null},{"id":57,"location":"일회용품","name":"1구비닐","weekday":"1봉이하시","holiday":null},{"id":58,"location":"일회용품","name":"2구비닐","weekday":"1봉이하시","holiday":null},{"id":59,"location":"일회용품","name":"빵봉지","weekday":"1봉이하시","holiday":null},{"id":60,"location":"일회용품","name":"배달봉지","weekday":"1봉이하시","holiday":null},{"id":61,"location":"일회용품","name":"빵칼","weekday":"1봉이하시","holiday":null},{"id":62,"location":"일회용품","name":"아이스크림스푼","weekday":"1봉이하시","holiday":null},{"id":63,"location":"일회용품","name":"글래드랩","weekday":3,"holiday":null},{"id":64,"location":"일회용품","name":"빨대(주스)","weekday":3,"holiday":null},{"id":65,"location":"일회용품","name":"빨대(버블티)","weekday":3,"holiday":null},{"id":66,"location":"일회용품","name":"커피스틱(파랑)","weekday":1,"holiday":null},{"id":67,"location":"일회용품","name":"14온스투명컵","weekday":"절반이하시","holiday":null},{"id":68,"location":"일회용품","name":"샌드위치케이스세트","weekday":"절반이하시","holiday":null},{"id":69,"location":"일회용품","name":"상미기한표","weekday":"","holiday":null},{"id":70,"location":"일회용품","name":"품명스티커(빵)","weekday":"","holiday":null},{"id":71,"location":"냉동고","name":"냉동딸기","weekday":3,"holiday":null},{"id":72,"location":"냉동고","name":"냉동망고","weekday":2,"holiday":null},{"id":73,"location":"냉동고","name":"냉동블루베리","weekday":3,"holiday":null},{"id":74,"location":"냉동고","name":"핫도그빵","weekday":10,"holiday":null},{"id":75,"location":"디저트 냉동고","name":"크리미슈","weekday":5,"holiday":null},{"id":76,"location":"디저트 냉동고","name":"크리미단팥","weekday":5,"holiday":null},{"id":77,"location":"디저트 냉동고","name":"백그램핫도그","weekday":10,"holiday":null},{"id":78,"location":"디저트 냉동고","name":"햄치즈샌드위치","weekday":5,"holiday":null},{"id":79,"location":"디저트 냉동고","name":"페스츄리와플","weekday":5,"holiday":null},{"id":80,"location":"디저트 냉동고","name":"소금빵","weekday":10,"holiday":null},{"id":81,"location":"냉동고","name":"가당딸기","weekday":3,"holiday":null},{"id":82,"location":"디저트 냉동고","name":"초코바움쿠헨","weekday":1,"holiday":null},{"id":83,"location":"디저트 냉동고","name":"맛카롱3종","weekday":7,"holiday":null},{"id":84,"location":"냉동고","name":"타피오카펄","weekday":1,"holiday":null},{"id":85,"location":"냉동고","name":"레몬슬라이스","weekday":1,"holiday":null},{"id":86,"location":"상온재료","name":"프로틴클러스터","weekday":1,"holiday":null},{"id":87,"location":"냉동고2","name":"냉동수박","weekday":15,"holiday":null},{"id":88,"location":"냉동고","name":"냉동토마토","weekday":3,"holiday":null},{"id":89,"location":"냉동고","name":"냉동파인","weekday":2,"holiday":null},{"id":90,"location":"쇼케이스","name":"콜드브루2종","weekday":2,"holiday":null},{"id":91,"location":"냉장고2","name":"바나나원액","weekday":2,"holiday":null},{"id":92,"location":"냉장고2","name":"다크컬스","weekday":1,"holiday":null},{"id":93,"location":"우유냉장고","name":"복숭아베이스","weekday":1,"holiday":null},{"id":94,"location":"냉장고2","name":"사라다샐러드","weekday":3,"holiday":null},{"id":95,"location":"냉장고2","name":"원조원액","weekday":3,"holiday":null},{"id":96,"location":"냉장고2","name":"밀크티베이스","weekday":1,"holiday":null},{"id":97,"location":"냉장고2","name":"딸기쫀득쿠키","weekday":1,"holiday":null},{"id":98,"location":"냉장고2","name":"우베베이스","weekday":2,"holiday":null},{"id":99,"location":"냉장고2","name":"제로자몽","weekday":1,"holiday":null},{"id":100,"location":"냉장고2","name":"제로레몬","weekday":1,"holiday":null},{"id":101,"location":"상온재료","name":"제로복숭아","weekday":2,"holiday":null},{"id":102,"location":"디저트 냉동고","name":"끼리치즈케익","weekday":"절반이하시","holiday":null},{"id":103,"location":"디저트 냉동고","name":"끼리쿠키앤크림","weekday":"절반이하시","holiday":null},{"id":104,"location":"상온재료","name":"애플티","weekday":1,"holiday":null},{"id":105,"location":"파우더","name":"대추파우더","weekday":1,"holiday":null},{"id":106,"location":"상온재료","name":"대추칩","weekday":2,"holiday":null},{"id":107,"location":"상온재료","name":"수정과","weekday":1,"holiday":null},{"id":108,"location":"상온재료","name":"번트카라멜파우더","weekday":1,"holiday":null},{"id":109,"location":"파우더","name":"자바칩","weekday":1,"holiday":null},{"id":110,"location":"파우더","name":"호지차파우더","weekday":1,"holiday":null},{"id":111,"location":"상온재료","name":"뱅쇼","weekday":2,"holiday":null},{"id":112,"location":"상온재료","name":"우바블랙티","weekday":2,"holiday":null},{"id":113,"location":"파우더","name":"쌀파우더","weekday":1,"holiday":null},{"id":114,"location":"파우더","name":"토피넛","weekday":1,"holiday":null},{"id":115,"location":"상온재료","name":"딸기피치루이보스티","weekday":1,"holiday":null},{"id":116,"location":"상온재료","name":"시나몬스틱","weekday":3,"holiday":null},{"id":117,"location":"디저트 냉동고","name":"모카번","weekday":6,"holiday":null},{"id":118,"location":"냉장고2","name":"제로매실","weekday":1,"holiday":null},{"id":119,"location":"상온재료","name":"고구마베이스","weekday":3,"holiday":null},{"id":120,"location":"상온재료","name":"복숭아시럽","weekday":2,"holiday":null},{"id":121,"location":"상온재료","name":"메론시럽","weekday":2,"holiday":null},{"id":122,"location":"상온재료","name":"불닭소스","weekday":1,"holiday":null},{"id":123,"location":"상온재료","name":"구운코코넛칩","weekday":1,"holiday":null},{"id":124,"location":"상온재료","name":"파인애플쥬스","weekday":3,"holiday":null},{"id":125,"location":"파우더","name":"민트초코파우더","weekday":2,"holiday":null},{"id":126,"location":"파우더","name":"코코넛파우더","weekday":2,"holiday":null},{"id":127,"location":"상온재료","name":"포도시럽","weekday":2,"holiday":null},{"id":128,"location":"파우더","name":"애플샤베트파우더","weekday":2,"holiday":null},{"id":129,"location":"파우더","name":"자두샤베트파우더","weekday":2,"holiday":null},{"id":130,"location":"냉동고","name":"딸기청","weekday":3,"holiday":null},{"id":131,"location":"상온재료","name":"꿀밤","weekday":1,"holiday":null},{"id":132,"location":"상온재료","name":"골드키위","weekday":1,"holiday":null},{"id":133,"location":"냉동고2","name":"냉동복숭아","weekday":10,"holiday":null},{"id":134,"location":"냉동고2","name":"냉동포도","weekday":10,"holiday":null},{"id":135,"location":"냉동고2","name":"냉동자두","weekday":10,"holiday":null},{"id":136,"location":"냉동고2","name":"냉동골드키위","weekday":10,"holiday":null}];
+const LOCATIONS=['쇼케이스','우유냉장고','냉장고1','디저트 냉동고','상온재료','냉장고2','파우더','냉동고','냉동고2','일회용품'];
+const STORAGE='store_order_by_location_nov09_v2';
+let state={items:INITIAL_ITEMS,stocks:{},choices:{},history:[],mode:'weekday'},activeLocation='전체',query='',tab='inventory';
+
+const byId=id=>document.getElementById(id);
+const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function save(){try{localStorage.setItem(STORAGE,JSON.stringify(state))}catch(e){/* storage unavailable */}}
+function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE));if(x&&Array.isArray(x.items))state={...state,...x}}catch(e){}}
+
+const getTarget=item=>state.mode==='weekday'?item.weekday:item.holiday;
+const numeric=v=>typeof v==='number'&&Number.isFinite(v);
+const blank=v=>v==null||v==='';
+// A stock that was never entered counts as 0.
+const stockOf=id=>numeric(state.stocks[id])?state.stocks[id]:0;
+const critText=t=>blank(t)?'기준 미설정':'기준 '+safe(t)+(numeric(t)?'개':'');
+function calc(item){
+  const t=getTarget(item);
+  if(numeric(t))return{status:'numeric',quantity:Math.max(0,+(t-stockOf(item.id)).toFixed(2))};
+  const choice=state.choices[item.id];
+  return{status:choice||'unchecked',quantity:choice==='order'?null:0};
+}
+const needsOrder=c=>c.status==='numeric'?c.quantity>0:c.status==='order';
+const locName=item=>item.location||'미분류';
+function groupByLocation(list,itemOf=x=>x){
+  const map=new Map();
+  for(const x of list){const loc=locName(itemOf(x));if(!map.has(loc))map.set(loc,[]);map.get(loc).push(x)}
+  const rank=loc=>{const i=LOCATIONS.indexOf(loc);return i<0?LOCATIONS.length:i};
+  return[...map.entries()].sort((a,b)=>rank(a[0])-rank(b[0]));
+}
+
+function toast(s){const t=byId('toast');t.textContent=s;t.classList.remove('hide');clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>t.classList.add('hide'),2200)}
+function changeStock(id,d){if(!state.items.some(i=>i.id===id))return;state.stocks[id]=Math.max(0,+(stockOf(id)+d).toFixed(2));save();render()}
+function choose(id,value){state.choices[id]=value;save();render()}
+
+const inLoc=(x,loc)=>loc==='전체'||(loc==='미분류'?!LOCATIONS.includes(x.location):x.location===loc);
+function renderLocations(){
+  const locs=['전체',...LOCATIONS,'미분류'].filter(loc=>loc==='전체'||state.items.some(x=>inLoc(x,loc)));
+  if(!locs.includes(activeLocation))activeLocation='전체';
+  byId('locations').innerHTML=locs.map(loc=>`<button type="button" class="loc${activeLocation===loc?' on':''}" data-location="${safe(loc)}" aria-pressed="${activeLocation===loc}">${safe(loc)}<span>${state.items.filter(x=>inLoc(x,loc)).length}</span></button>`).join('');
+}
+function visibleItems(){const q=query.trim().toLowerCase();return state.items.filter(x=>inLoc(x,activeLocation)&&x.name.toLowerCase().includes(q))}
+
+function rowHTML(item){
+  const t=getTarget(item),c=calc(item),num=numeric(t),name=safe(item.name),s=stockOf(item.id);
+  let chip;
+  if(num)chip=c.quantity>0?`<span class="chip need">발주 ${c.quantity}개</span>`:'<span class="chip ok">충분</span>';
+  else chip=c.status==='order'?'<span class="chip need">발주 필요</span>':c.status==='ok'?'<span class="chip ok">충분</span>':'<span class="chip wait">선택 대기</span>';
+  const ctl=num
+    ?`<div class="counter"><button type="button" class="step" data-step="-1" data-id="${item.id}" aria-label="${name} 1개 빼기"${s<=0?' disabled':''}>−</button><span class="qty" aria-label="${name} 재고">${s}</span><button type="button" class="step plus" data-step="1" data-id="${item.id}" aria-label="${name} 1개 더하기">+</button></div>`
+    :`<div class="seg" role="group" aria-label="${name} 발주 여부"><button type="button" data-choice="ok" data-id="${item.id}" class="${c.status==='ok'?'on':''}" aria-pressed="${c.status==='ok'}">재고 충분</button><button type="button" data-choice="order" data-id="${item.id}" class="${c.status==='order'?'on':''}" aria-pressed="${c.status==='order'}">발주 필요</button></div>`;
+  return `<div class="row${num?'':' pick'}"><div class="rmain"><div class="rname">${name}</div><div class="rmeta"><span>${critText(t)}</span>${chip}</div></div>${ctl}</div>`;
+}
+function renderInventory(){
+  renderLocations();
+  const all=state.items.map(calc);
+  byId('total').textContent=state.items.length;
+  byId('needed').textContent=all.filter(needsOrder).length;
+  byId('pending').textContent=all.filter(c=>c.status==='unchecked').length;
+  const groups=groupByLocation(visibleItems());
+  byId('list').innerHTML=groups.length
+    ?groups.map(([loc,list])=>`<section class="group" aria-label="${safe(loc)}"><div class="ghead"><h2>${safe(loc)}</h2><span>${list.length}개 중 발주 ${list.filter(x=>needsOrder(calc(x))).length}개</span></div><div class="panel">${list.map(rowHTML).join('')}</div></section>`).join('')
+    :`<div class="empty">${query.trim()?'검색한 품목이 없어요.':'표시할 품목이 없어요.'}</div>`;
+}
+
+function getOrders(){return state.items.map(i=>({item:i,...calc(i)})).filter(needsOrder)}
+function orderText(){
+  const lines=['[매장 발주 목록]'];
+  for(const[loc,items]of groupByLocation(getOrders(),x=>x.item)){lines.push('','■ '+loc);for(const x of items)lines.push('- '+x.item.name+': '+(x.status==='order'?'수량 확인':x.quantity+'개'))}
+  return lines.join('\n');
+}
+function renderOrders(){
+  const o=getOrders();
+  byId('orderCount').textContent=o.length+'개 품목';
+  byId('orderLines').innerHTML=o.length
+    ?groupByLocation(o,x=>x.item).map(([loc,items])=>`<section class="group" aria-label="${safe(loc)}"><div class="ghead"><h2>${safe(loc)}</h2><span>${items.length}개</span></div><div class="panel">${items.map(x=>{const t=getTarget(x.item);return `<div class="row"><div class="rmain"><div class="rname">${safe(x.item.name)}</div><div class="rmeta"><span>${x.status==='order'?critText(t):`기준 ${t}개, 재고 ${stockOf(x.item.id)}개`}</span></div></div>${x.status==='order'?'<span class="chip need">수량 확인</span>':`<span class="oq">${x.quantity}<small>개</small></span>`}</div>`}).join('')}</div></section>`).join('')
+    :'<div class="empty">발주할 품목이 없어요.</div>';
+  byId('history').innerHTML=state.history.length
+    ?`<div class="panel">${state.history.map((x,i)=>`<div class="row"><div class="rmain"><div class="rname">${safe(x.date)}</div><div class="rmeta"><span>${safe(x.mode)} 기준, ${safe(x.count)}개 품목</span></div></div><button type="button" class="btn" data-history="${i}">복사</button></div>`).join('')}</div>`
+    :'<div class="empty">저장한 발주 기록이 없어요.</div>';
+}
+function renderSettings(){
+  const sel=byId('newLocation'),cur=sel.value;
+  sel.innerHTML=LOCATIONS.map(x=>`<option>${safe(x)}</option>`).join('');
+  if(cur)sel.value=cur;
+  const q=byId('editSearch').value.trim().toLowerCase();
+  const filtered=state.items.filter(x=>x.name.toLowerCase().includes(q));
+  byId('editList').innerHTML=filtered.length
+    ?`<div class="panel">${filtered.slice(0,80).map(x=>`<div class="row"><div class="rmain"><div class="rname">${safe(x.name)}</div><div class="rmeta"><span>${safe(locName(x))}, 평일 ${blank(x.weekday)?'미설정':safe(x.weekday)+(numeric(x.weekday)?'개':'')}</span></div></div><div class="actions"><button type="button" class="btn" data-edit="${x.id}">수정</button><button type="button" class="btn danger" data-delete="${x.id}">삭제</button></div></div>`).join('')}</div>`+(filtered.length>80?'<p class="footnote">처음 80개만 보여요. 나머지는 검색해서 찾아 주세요.</p>':'')
+    :'<div class="empty">검색한 품목이 없어요.</div>';
+}
+function render(){
+  for(const m of['weekday','holiday']){const b=byId(m);b.classList.toggle('on',state.mode===m);b.setAttribute('aria-pressed',String(state.mode===m))}
+  renderInventory();renderOrders();if(tab==='settings')renderSettings();
+}
+function changeTab(next){
+  tab=next;
+  for(const id of['inventory','orders','settings'])byId(id).classList.toggle('hide',id!==tab);
+  document.querySelectorAll('[data-tab]').forEach(b=>{const on=b.dataset.tab===tab;b.classList.toggle('on',on);b.setAttribute('aria-current',on?'page':'false')});
+  if(tab==='settings')renderSettings();if(tab==='orders')renderOrders();
+  window.scrollTo(0,0);
+}
+function download(name,data,type){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function parseTarget(s){const t=String(s??'').trim();if(!t)return null;if(/^\d+(\.\d+)?$/.test(t))return Number(t);return t}
+async function copy(text){try{await navigator.clipboard.writeText(text);toast('복사했어요.')}catch(e){const el=document.createElement('textarea');el.value=text;document.body.appendChild(el);el.select();try{document.execCommand('copy');toast('복사했어요.')}catch(ex){toast('복사하지 못했어요.')}el.remove()}}
+function dlg(title,fields,okText,danger){return new Promise(res=>{
+  const o=document.createElement('div');o.className='overlay';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
+  const f=(fields||[]).map((x,i)=>x.text?`<p>${safe(x.text)}</p>`:x.options
+    ?`<div class="field"><label for="dlg${i}">${safe(x.label)}</label><select id="dlg${i}" data-i="${i}">${x.options.map(op=>`<option${op===x.value?' selected':''}>${safe(op)}</option>`).join('')}</select></div>`
+    :`<div class="field"><label for="dlg${i}">${safe(x.label)}</label><input id="dlg${i}" data-i="${i}" value="${safe(x.value??'')}" placeholder="${safe(x.ph||'')}" autocomplete="off"></div>`).join('');
+  o.innerHTML=`<div class="dialog"><h2>${safe(title)}</h2>${f}<div class="dlg-actions"><button type="button" class="btn" data-c>취소</button><button type="button" class="btn ${danger?'dangerfill':'primary'}" data-o>${safe(okText||'확인')}</button></div></div>`;
+  document.body.appendChild(o);
+  const done=v=>{o.remove();res(v)};
+  o.querySelector('[data-c]').onclick=()=>done(null);
+  o.querySelector('[data-o]').onclick=()=>done([...o.querySelectorAll('[data-i]')].map(e=>e.value));
+  o.addEventListener('click',e=>{if(e.target===o)done(null)});
+  o.addEventListener('keydown',e=>{if(e.key==='Escape')done(null)});
+  setTimeout(()=>o.querySelector('[data-c]').focus(),0);
+})}
+
+load();
+byId('today').textContent='오늘 '+new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
+render();
+
+document.addEventListener('click',async e=>{
+  const el=e.target.closest('button');if(!el)return;
+  const d=el.dataset,kb=e.detail===0;
+  if(d.tab)changeTab(d.tab);
+  if(d.location){
+    activeLocation=d.location;renderInventory();
+    const bar=document.querySelector('.locbar'),y=byId('list').getBoundingClientRect().top+window.scrollY-bar.offsetHeight-8;
+    if(window.scrollY>y)window.scrollTo(0,y);
+    if(kb)[...byId('locations').children].find(b=>b.dataset.location===d.location)?.focus();
+  }
+  if(d.step){changeStock(Number(d.id),Number(d.step));if(kb)byId('list').querySelector(`[data-step="${d.step}"][data-id="${d.id}"]`)?.focus()}
+  if(d.choice){choose(Number(d.id),d.choice);if(kb)byId('list').querySelector(`[data-choice="${d.choice}"][data-id="${d.id}"]`)?.focus()}
+  if(d.history!==undefined){const h=state.history[Number(d.history)];if(h)copy(h.text)}
+  if(d.delete){
+    const x=state.items.find(i=>i.id===Number(d.delete));
+    if(x&&await dlg(x.name+' 품목을 삭제할까요?',[],'삭제',true)){state.items=state.items.filter(i=>i.id!==x.id);delete state.stocks[x.id];delete state.choices[x.id];save();render();toast(x.name+' 품목을 삭제했어요.')}
+  }
+  if(d.edit){
+    const x=state.items.find(i=>i.id===Number(d.edit));if(!x)return;
+    const r=await dlg('품목 수정',[{label:'품목명',value:x.name},{label:'장소',value:x.location,options:LOCATIONS},{label:'평일 기준',value:x.weekday??'',ph:'예: 3 또는 절반이하시'},{label:'금·토·휴일 기준',value:x.holiday??'',ph:'비워 두면 미설정'}],'저장');
+    if(!r)return;
+    x.name=r[0].trim()||x.name;x.location=r[1];x.weekday=parseTarget(r[2]);x.holiday=parseTarget(r[3]);save();render();toast('저장했어요.');
+  }
+});
+byId('search').addEventListener('input',e=>{query=e.target.value;renderInventory()});
+byId('editSearch').addEventListener('input',renderSettings);
+byId('weekday').addEventListener('click',()=>{state.mode='weekday';save();render()});
+byId('holiday').addEventListener('click',()=>{state.mode='holiday';save();render()});
+
+const resetOverlay=byId('resetOverlay'),closeReset=()=>resetOverlay.classList.add('hide');
+byId('reset').addEventListener('click',()=>{resetOverlay.classList.remove('hide');byId('resetCancel').focus()});
+byId('resetCancel').addEventListener('click',closeReset);
+resetOverlay.addEventListener('click',e=>{if(e.target===resetOverlay)closeReset()});
+resetOverlay.addEventListener('keydown',e=>{if(e.key==='Escape')closeReset()});
+byId('resetConfirm').addEventListener('click',()=>{
+  state.stocks={};state.choices={};save();closeReset();
+  activeLocation='전체';query='';byId('search').value='';
+  changeTab('inventory');render();toast('재고 조사를 초기화했어요.');
+});
+
+byId('copyOrder').addEventListener('click',()=>copy(orderText()));
+byId('csvOrder').addEventListener('click',()=>{
+  const o=getOrders();
+  const records=[['장소','품목','평일/휴일','기준','재고','발주 수량','비고'],...o.map(x=>[locName(x.item),x.item.name,state.mode==='weekday'?'평일':'금·토·휴일',getTarget(x.item),x.status==='order'?'':stockOf(x.item.id),x.status==='order'?'':x.quantity,x.status==='order'?'수량 확인':''])];
+  const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';
+  download('발주목록.csv','﻿'+records.map(r=>r.map(esc).join(',')).join('\r\n'),'text/csv;charset=utf-8');
+});
+byId('saveHistory').addEventListener('click',()=>{
+  const o=getOrders();if(!o.length){toast('발주할 품목이 없어요.');return}
+  state.history.unshift({date:new Date().toLocaleString('ko-KR'),mode:state.mode==='weekday'?'평일':'금·토·휴일',count:o.length,text:orderText()});
+  state.history=state.history.slice(0,50);save();renderOrders();toast('발주 기록을 저장했어요.');
+});
+byId('addItem').addEventListener('click',()=>{
+  const name=byId('newName').value.trim();if(!name){toast('품목명을 입력해 주세요.');return}
+  state.items.push({id:Math.max(0,...state.items.map(i=>i.id))+1,name,location:byId('newLocation').value,weekday:parseTarget(byId('newWeekday').value),holiday:parseTarget(byId('newHoliday').value)});
+  byId('newName').value='';byId('newWeekday').value='';byId('newHoliday').value='';
+  save();render();toast('품목을 추가했어요.');
+});
+byId('backup').addEventListener('click',()=>download('매장발주_백업.json',JSON.stringify(state,null,2),'application/json'));
+byId('restoreButton').addEventListener('click',()=>byId('restoreFile').click());
+byId('restoreFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const v=JSON.parse(await f.text());if(!Array.isArray(v.items))throw Error('invalid');
+    if(!await dlg('백업을 불러올까요?',[{text:'지금 입력한 재고와 품목이 백업 파일 내용으로 바뀌어요.'}],'불러오기'))return;
+    state={...state,...v};save();render();toast('백업을 불러왔어요.');
+  }catch(err){toast('올바른 백업 파일이 아니에요.')}
+  finally{e.target.value=''}
+});
+</script>
+</body>
+</html>
