@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#FFD60A">
-<meta name="color-scheme" content="only light">
-<meta name="supported-color-schemes" content="light">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <meta name="darkreader-lock">
 <title>매장 자동 발주 관리</title>
 <meta name="apple-mobile-web-app-title" content="매장 발주">
@@ -35,13 +35,13 @@
   --display:"Black Han Sans","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
   --body:system-ui,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
   --gut:16px;
-  color-scheme:only light;
+  color-scheme:light dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;background:var(--paper)}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body{color-scheme:light;margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
 h1,h2,p{margin:0}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit;color-scheme:light}
 button{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background-color .12s,border-color .12s,color .12s}
 button:disabled{opacity:.3;cursor:default}
 :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
@@ -163,6 +163,7 @@ button:disabled{opacity:.3;cursor:default}
 @media (prefers-reduced-motion:reduce){button{transition:none}}
 @media (max-width:480px){.fieldrow{grid-template-columns:minmax(0,1fr)}.head h1{font-size:27px}}
 @media (max-width:360px){.row.pick{flex-wrap:wrap}.row.pick .seg{width:100%}.row.pick .seg button{flex:1}}
+@media (prefers-color-scheme:dark){html,body{background:var(--paper);color:var(--ink)}}
 </style>
 </head>
 <body>
