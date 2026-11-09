@@ -342,7 +342,7 @@ function renderOrders(){
     ?groupByLocation(o,x=>x.item).map(([loc,items])=>`<section class="group" aria-label="${safe(loc)}"><div class="ghead"><h2>${safe(loc)}</h2><span>${items.length}개</span></div><div class="panel">${items.map(x=>{const t=getTarget(x.item);return `<div class="row"><div class="rmain"><div class="rname">${safe(x.item.name)}</div><div class="rmeta"><span>${x.status==='order'?critText(t):`기준 ${t}개, 재고 ${stockOf(x.item.id)}개`}</span></div></div>${x.status==='order'?'<span class="chip need">수량 확인</span>':`<span class="oq">${x.quantity}<small>개</small></span>`}</div>`}).join('')}</div></section>`).join('')
     :'<div class="empty">발주할 품목이 없어요.</div>';
   byId('history').innerHTML=state.history.length
-    ?`<div class="panel">${state.history.map((x,i)=>`<details class="hist"><summary><div class="rmain"><div class="rname">${safe(x.date)}</div><div class="rmeta"><span>${safe(x.mode)} 기준, ${safe(x.count)}개 품목</span></div></div><span class="chev" aria-hidden="true"></span></summary><div class="hbody"><pre class="htext">${safe(x.text)}</pre><button type="button" class="btn" data-history="${i}">이 목록 복사</button></div></details>`).join('')}</div>`
+    ?`<div class="panel">${state.history.map((x,i)=>`<details class="hist"><summary><div class="rmain"><div class="rname">${safe(x.date)}</div><div class="rmeta"><span>${safe(x.mode)} 기준, ${safe(x.count)}개 품목</span></div></div><span class="chev" aria-hidden="true"></span></summary><div class="hbody"><pre class="htext">${safe(x.text)}</pre><div class="actions"><button type="button" class="btn" data-history="${i}">이 목록 복사</button><button type="button" class="btn danger" data-hdelete="${i}">기록 삭제</button></div></div></details>`).join('')}</div>`
     :'<div class="empty">저장한 발주 기록이 없어요.</div>';
 }
 function renderSettings(){
@@ -401,6 +401,10 @@ document.addEventListener('click',async e=>{
   if(d.step){changeStock(Number(d.id),Number(d.step));if(kb)byId('list').querySelector(`[data-step="${d.step}"][data-id="${d.id}"]`)?.focus()}
   if(d.choice){choose(Number(d.id),d.choice);if(kb)byId('list').querySelector(`[data-choice="${d.choice}"][data-id="${d.id}"]`)?.focus()}
   if(d.history!==undefined){const h=state.history[Number(d.history)];if(h)copy(h.text)}
+  if(d.hdelete!==undefined){
+    const h=state.history[Number(d.hdelete)];
+    if(h&&await dlg(h.date+' 발주 기록을 삭제할까요?',[],'삭제',true)){state.history.splice(Number(d.hdelete),1);save();renderOrders();toast('발주 기록을 삭제했어요.')}
+  }
   if(d.delete){
     const x=state.items.find(i=>i.id===Number(d.delete));
     if(x&&await dlg(x.name+' 품목을 삭제할까요?',[],'삭제',true)){state.items=state.items.filter(i=>i.id!==x.id);delete state.stocks[x.id];delete state.choices[x.id];save();render();toast(x.name+' 품목을 삭제했어요.')}
